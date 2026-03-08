@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Granny Pro - Test V1.2</title>
+    <title>Granny Pro V1.5 - All-In-One Test Build</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; }
         #overlay {
@@ -13,14 +13,14 @@
     </style>
 </head>
 <body>
-    <div id="overlay">GRANNY PRO V1.2 - SNOWY DEXRY WEXRY</div>
+    <div id="overlay">GRANNY PRO V1.5 - DEVELOPER: SNOWY DEXRY WEXRY</div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // --- SAHNE VE AYDINLATMA ---
+        // --- SAHNE VE AYDINLATMA (Karanlık & Sis) ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.2); // Karanlık ve puslu atmosfer
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.15); // Puslu atmosfer
         
         const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 100);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -28,41 +28,52 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // Çok kısık genel ışık
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // Çok sönük ortam
         scene.add(ambientLight);
 
-        const flashLight = new THREE.PointLight(0xffffff, 1.2, 10); // Yakın aydınlatma
+        const flashLight = new THREE.PointLight(0xffffff, 1.2, 10); // Yakın el feneri
         flashLight.position.set(0, 0, 0.2);
         camera.add(flashLight);
         scene.add(camera);
 
-        // --- MATERYALLER ---
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x4d3b2e });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c });
-        const stairMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1a });
+        // --- MATERYALLER & DOKULAR (Senin Desenlerin!) ---
+        const loader = new THREE.TextureLoader();
+        // NOT: Senin hazırladığımız image_3.png görselini Three.js'in örnek tuğlasıyla değiştirdim ki kod hemen çalışsın.
+        // Kendi görselini kullanmak için '...' kısmına kendi jpg dosyanın URL'sini yaz.
+        const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
+        // Kendi görselini kullanmak için: const wallTex = loader.load('image_3.png');
+        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+        wallTex.repeat.set(3, 1);
 
-        // --- EV VE ODALAR (V1.2 Yenilik: İç Duvarlar) ---
+        // Materyaller
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x888888 }); // Doku kaplı
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c });
+
+        // --- EV VE ODALAR (V1.2 İç Duvarlar & Collision V1.3) ---
+        // Çarpışma tespiti için grup
+        const collidableObjects = [];
+
         function createFloor(y) {
             const group = new THREE.Group();
             
-            // Zemin
+            // Zemin (Collision'a gerek yok)
             const floor = new THREE.Mesh(new THREE.BoxGeometry(18, 0.1, 18), floorMat);
             floor.position.y = y;
             group.add(floor);
 
-            // Dış Duvarlar
-            const extWalls = [
+            // Duvarlar
+            const walls = [
                 {p:[0, -9], s:[18, 3.5, 0.4]}, {p:[0, 9], s:[18, 3.5, 0.4]},
                 {p:[-9, 0], s:[0.4, 3.5, 18]}, {p:[9, 0], s:[0.4, 3.5, 18]}
             ];
-            extWalls.forEach(w => {
+            walls.forEach(w => {
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
                 mesh.position.set(w.p[0], y + 1.75, w.p[1]);
                 group.add(mesh);
+                collidableObjects.push(mesh); // Collision ekle
             });
 
             // İç Odalar (Koridor ve 2 Oda)
-            // Zemin kat: Koridor (3m genişlik), 1 Büyük Oda, 1 Küçük Oda
             const inWalls = [
                 {p:[ -1.5, -4.5], s:[15, 3.5, 0.2]}, // Ana Koridor Duvarı
                 {p:[ -1.5, 0], s:[0.2, 3.5, 9]},     // Oda Ayırıcı Duvar
@@ -72,6 +83,7 @@
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
                 mesh.position.set(w.p[0], y + 1.75, w.p[1]);
                 group.add(mesh);
+                collidableObjects.push(mesh); // Collision ekle
             });
 
             return group;
@@ -79,26 +91,21 @@
 
         for(let i=0; i<3; i++) scene.add(createFloor(i * 3.5));
 
-        // Merdivenler (Daha yavaş çıkmak için rampayı uzattım)
-        for(let i=0; i<2; i++) {
-            const s = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 8.5), stairMat);
-            s.rotation.x = -0.45;
-            s.position.set(6, (i*3.5)+1.5, 0);
-            scene.add(s);
-        }
-
-        // --- SAKLANMA OBJELERİ (PROTOTİP) ---
-        // Yatak (Beyaz) - Zemin Kat Oda 1
-        const bed = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 3.5), new THREE.MeshStandardMaterial({color: 0xdddddd}));
-        bed.position.set(-5, 0.25, -6);
-        scene.add(bed);
-
-        // Dolap (Koyu Kahve) - Zemin Kat Oda 1
-        const closet = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.8, 0.8), new THREE.MeshStandardMaterial({color: 0x2d1b0a}));
-        closet.position.set(-8.2, 1.4, -6);
+        // --- SAKLANMA OBJELERİ VE EŞYALAR (Prototip & Collision) ---
+        // Büyük Gardırop (Zemin Kat)
+        const closet = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 0.8), new THREE.MeshStandardMaterial({color: 0x2d1b0a}));
+        closet.position.set(-8, 1.75, -5);
         scene.add(closet);
+        collidableObjects.push(closet); // Collision ekle
 
-        // --- PROFESYONEL VE YAVAŞ DOKUNMATİK KONTROLLER (FIXED V1.2) ---
+        // Bebek Beşiği (Zemin Kat)
+        const crib = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 1.2), new THREE.MeshStandardMaterial({color: 0x8b4513, wireframe: true}));
+        crib.position.set(0, 0.75, -5);
+        scene.add(crib);
+        collidableObjects.push(crib); // Collision ekle
+
+
+        // --- YUMUŞAK VE YAVAŞ DOKUNMATİK KONTROLLER (Fixed V1.2 & Collision V1.3) ---
         let moveTouchId = null, lookTouchId = null;
         let moveStart = new THREE.Vector2(), moveCurrent = new THREE.Vector2();
         let lookLast = new THREE.Vector2();
@@ -106,10 +113,10 @@
         let velocity = new THREE.Vector3();
 
         // **KONTROL AYARLARI**
-        const WALK_SPEED_LIMIT = 0.05; // Yürüme hızı sınırı (Yarıya düşürüldü)
-        const WALK_ACCEL = 0.001;     // Yürüme ivmesi (Hızlanma)
-        const LOOK_SENSITIVITY = 0.0035; // Bakış hassasiyeti (Çok daha yavaş)
-        const FRICTION = 0.82;          // Sürtünme (Tok duruş)
+        const WALK_SPEED_LIMIT = 0.05; 
+        const WALK_ACCEL = 0.001;     
+        const LOOK_SENSITIVITY = 0.0035; // Çok daha yavaş
+        const FRICTION = 0.82;          
 
         window.addEventListener('touchstart', (e) => {
             for (let t of e.changedTouches) {
@@ -129,7 +136,6 @@
                 if (t.identifier === moveTouchId) {
                     moveCurrent.set(t.clientX, t.clientY);
                 } else if (t.identifier === lookTouchId) {
-                    // **LOOK FIX:** Hassasiyet düşürüldü
                     yaw -= (t.clientX - lookLast.x) * LOOK_SENSITIVITY;
                     pitch -= (t.clientY - lookLast.y) * LOOK_SENSITIVITY;
                     pitch = Math.max(-1.45, Math.min(1.45, pitch)); // Kafa açısını kısıtla
@@ -145,14 +151,13 @@
             }
         });
 
-        // Oyuncu başlangıç pozisyonu (Koridorda)
-        camera.position.set(0, 1.6, 6);
+        camera.position.set(0, 1.6, 6); // Koridorda başla
 
         function animate() {
             requestAnimationFrame(animate);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            // **MOVE FIX:** Yürüme hızı ve ivmesi profesyonelleştirildi
+            // **MOVE FIX & COLLISION:** Yürüme hızı ve ivmesi profesyonelleştirildi
             if (moveTouchId !== null) {
                 const delta = moveCurrent.clone().sub(moveStart);
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -160,12 +165,22 @@
                 forward.y = 0; right.y = 0; // Uçmayı engelle
                 forward.normalize(); right.normalize();
 
-                // Parmağı ne kadar sürüklediğine göre ivme ver, ama sınırı aşma
                 const accelX = Math.max(-0.01, Math.min(0.01, delta.x * 0.0001));
                 const accelZ = Math.max(-0.01, Math.min(0.01, delta.y * 0.0001));
 
-                velocity.addScaledVector(forward, -accelZ);
-                velocity.addScaledVector(right, accelX);
+                let nextVel = velocity.clone();
+                nextVel.addScaledVector(forward, -accelZ);
+                nextVel.addScaledVector(right, accelX);
+
+                // **COLLISION CHECK (Fixed V1.3):**
+                const playerRay = new THREE.Raycaster(camera.position, nextVel.clone().normalize(), 0, 0.6);
+                const hits = playerRay.intersectObjects(collidableObjects);
+                
+                if (hits.length === 0) {
+                    velocity.copy(nextVel);
+                } else {
+                    velocity.set(0,0,0); // Çarpınca dur
+                }
             }
 
             // Hız sınırla
@@ -174,7 +189,7 @@
             }
 
             camera.position.add(velocity);
-            velocity.multiplyScalar(FRICTION); // Yumuşak ama tok duruş
+            velocity.multiplyScalar(FRICTION); 
 
             renderer.render(scene, camera);
         }
