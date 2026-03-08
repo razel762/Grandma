@@ -3,128 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Granny Pro V1.5 - All-In-One Test Build</title>
+    <title>Granny Pro V1.6 - Construction Mode</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; touch-action: none; user-select: none; }
         #overlay {
-            position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif;
-            pointer-events: none; text-shadow: 2px 2px 4px #000; z-index: 10; font-size: 14px;
+            position: absolute; top: 10px; left: 10px; color: #000; font-family: sans-serif;
+            pointer-events: none; font-weight: bold; z-index: 10;
         }
     </style>
 </head>
 <body>
-    <div id="overlay">GRANNY PRO V1.5 - DEVELOPER: SNOWY DEXRY WEXRY</div>
+    <div id="overlay">GRANNY PRO V1.6 - DEVELOPER: SNOWY DEXRY WEXRY (Light Mode)</div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // --- SAHNE VE AYDINLATMA (Karanlık & Sis) ---
+        // --- SAHNE VE AYDINLATMA (Karanlık Kaldırıldı) ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.15); // Puslu atmosfer
+        scene.background = new THREE.Color(0x87CEEB); // Gökyüzü mavisi aydınlık tema
         
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 100);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // Çok sönük ortam
+        // Güçlü Aydınlatma
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
         scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(5, 10, 7);
+        scene.add(sunLight);
 
-        const flashLight = new THREE.PointLight(0xffffff, 1.2, 10); // Yakın el feneri
-        flashLight.position.set(0, 0, 0.2);
-        camera.add(flashLight);
-        scene.add(camera);
-
-        // --- MATERYALLER & DOKULAR (Senin Desenlerin!) ---
+        // --- MATERYALLER ---
         const loader = new THREE.TextureLoader();
-        // NOT: Senin hazırladığımız image_3.png görselini Three.js'in örnek tuğlasıyla değiştirdim ki kod hemen çalışsın.
-        // Kendi görselini kullanmak için '...' kısmına kendi jpg dosyanın URL'sini yaz.
         const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
-        // Kendi görselini kullanmak için: const wallTex = loader.load('image_3.png');
         wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-        wallTex.repeat.set(3, 1);
+        wallTex.repeat.set(2, 1);
+        
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const stairMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1a });
 
-        // Materyaller
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x888888 }); // Doku kaplı
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c });
-
-        // --- EV VE ODALAR (V1.2 İç Duvarlar & Collision V1.3) ---
-        // Çarpışma tespiti için grup
         const collidableObjects = [];
 
-        function createFloor(y) {
-            const group = new THREE.Group();
-            
-            // Zemin (Collision'a gerek yok)
-            const floor = new THREE.Mesh(new THREE.BoxGeometry(18, 0.1, 18), floorMat);
-            floor.position.y = y;
-            group.add(floor);
-
-            // Duvarlar
-            const walls = [
-                {p:[0, -9], s:[18, 3.5, 0.4]}, {p:[0, 9], s:[18, 3.5, 0.4]},
-                {p:[-9, 0], s:[0.4, 3.5, 18]}, {p:[9, 0], s:[0.4, 3.5, 18]}
-            ];
-            walls.forEach(w => {
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
-                mesh.position.set(w.p[0], y + 1.75, w.p[1]);
-                group.add(mesh);
-                collidableObjects.push(mesh); // Collision ekle
-            });
-
-            // İç Odalar (Koridor ve 2 Oda)
-            const inWalls = [
-                {p:[ -1.5, -4.5], s:[15, 3.5, 0.2]}, // Ana Koridor Duvarı
-                {p:[ -1.5, 0], s:[0.2, 3.5, 9]},     // Oda Ayırıcı Duvar
-                {p:[ -6, 0], s:[6, 3.5, 0.2]}      // Küçük Oda Kapı Üstü
-            ];
-            inWalls.forEach(w => {
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
-                mesh.position.set(w.p[0], y + 1.75, w.p[1]);
-                group.add(mesh);
-                collidableObjects.push(mesh); // Collision ekle
-            });
-
-            return group;
+        // --- YARDIMCI FONKSİYONLAR ---
+        function createBox(w, h, d, x, y, z, mat, collidable = true) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            if(collidable) collidableObjects.push(mesh);
+            return mesh;
         }
 
-        for(let i=0; i<3; i++) scene.add(createFloor(i * 3.5));
+        // --- GERÇEKÇİ MERDİVEN YAPICI ---
+        function createStairs(startX, startY, startZ, floorHeight) {
+            const stepCount = 12;
+            const stepHeight = floorHeight / stepCount;
+            const stepDepth = 0.4;
+            const stepWidth = 2.5;
 
-        // --- SAKLANMA OBJELERİ VE EŞYALAR (Prototip & Collision) ---
-        // Büyük Gardırop (Zemin Kat)
-        const closet = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 0.8), new THREE.MeshStandardMaterial({color: 0x2d1b0a}));
-        closet.position.set(-8, 1.75, -5);
-        scene.add(closet);
-        collidableObjects.push(closet); // Collision ekle
+            for(let i = 0; i < stepCount; i++) {
+                createBox(
+                    stepWidth, stepHeight, stepDepth,
+                    startX, 
+                    startY + (i * stepHeight) + (stepHeight / 2), 
+                    startZ - (i * stepDepth),
+                    stairMat
+                );
+            }
+        }
 
-        // Bebek Beşiği (Zemin Kat)
-        const crib = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 1.2), new THREE.MeshStandardMaterial({color: 0x8b4513, wireframe: true}));
-        crib.position.set(0, 0.75, -5);
-        scene.add(crib);
-        collidableObjects.push(crib); // Collision ekle
+        // --- EV İNŞASI ---
+        for(let i=0; i<3; i++) {
+            const y = i * 4;
+            // Kat Zemini
+            createBox(20, 0.2, 20, 0, y, 0, floorMat, false);
+            
+            // Dış Duvarlar
+            createBox(20, 4, 0.4, 0, y + 2, -10, wallMat);
+            createBox(20, 4, 0.4, 0, y + 2, 10, wallMat);
+            createBox(0.4, 4, 20, -10, y + 2, 0, wallMat);
+            createBox(0.4, 4, 20, 10, y + 2, 0, wallMat);
 
+            // Kapılı İç Duvar (Örnek)
+            if(i < 2) {
+                // Sol kanat duvar
+                createBox(7, 4, 0.2, -5, y + 2, 0, wallMat);
+                // Sağ kanat duvar
+                createBox(7, 4, 0.2, 5, y + 2, 0, wallMat);
+                // Kapı üstü kiriş (Kapı boşluğu ortada)
+                createBox(3, 1, 0.2, 0, y + 3.5, 0, wallMat);
+            }
+        }
 
-        // --- YUMUŞAK VE YAVAŞ DOKUNMATİK KONTROLLER (Fixed V1.2 & Collision V1.3) ---
+        // Merdivenleri Yerleştir (Katlar Arası)
+        createStairs(7, 0, 5, 4); // 0 -> 1. Kat
+        createStairs(-7, 4, 5, 4); // 1 -> 2. Kat
+
+        // --- KONTROLLER ---
         let moveTouchId = null, lookTouchId = null;
         let moveStart = new THREE.Vector2(), moveCurrent = new THREE.Vector2();
         let lookLast = new THREE.Vector2();
         let yaw = 0, pitch = 0;
         let velocity = new THREE.Vector3();
 
-        // **KONTROL AYARLARI**
-        const WALK_SPEED_LIMIT = 0.05; 
-        const WALK_ACCEL = 0.001;     
-        const LOOK_SENSITIVITY = 0.0035; // Çok daha yavaş
-        const FRICTION = 0.82;          
-
         window.addEventListener('touchstart', (e) => {
             for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2 && moveTouchId === null) {
+                if (t.clientX < window.innerWidth / 2) {
                     moveTouchId = t.identifier;
                     moveStart.set(t.clientX, t.clientY);
                     moveCurrent.set(t.clientX, t.clientY);
-                } else if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+                } else {
                     lookTouchId = t.identifier;
                     lookLast.set(t.clientX, t.clientY);
                 }
@@ -136,9 +126,9 @@
                 if (t.identifier === moveTouchId) {
                     moveCurrent.set(t.clientX, t.clientY);
                 } else if (t.identifier === lookTouchId) {
-                    yaw -= (t.clientX - lookLast.x) * LOOK_SENSITIVITY;
-                    pitch -= (t.clientY - lookLast.y) * LOOK_SENSITIVITY;
-                    pitch = Math.max(-1.45, Math.min(1.45, pitch)); // Kafa açısını kısıtla
+                    yaw -= (t.clientX - lookLast.x) * 0.004;
+                    pitch -= (t.clientY - lookLast.y) * 0.004;
+                    pitch = Math.max(-1.45, Math.min(1.45, pitch));
                     lookLast.set(t.clientX, t.clientY);
                 }
             }
@@ -151,55 +141,38 @@
             }
         });
 
-        camera.position.set(0, 1.6, 6); // Koridorda başla
+        camera.position.set(0, 1.7, 8);
 
         function animate() {
             requestAnimationFrame(animate);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            // **MOVE FIX & COLLISION:** Yürüme hızı ve ivmesi profesyonelleştirildi
             if (moveTouchId !== null) {
                 const delta = moveCurrent.clone().sub(moveStart);
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                forward.y = 0; right.y = 0; // Uçmayı engelle
+                forward.y = 0; right.y = 0;
                 forward.normalize(); right.normalize();
 
-                const accelX = Math.max(-0.01, Math.min(0.01, delta.x * 0.0001));
-                const accelZ = Math.max(-0.01, Math.min(0.01, delta.y * 0.0001));
-
                 let nextVel = velocity.clone();
-                nextVel.addScaledVector(forward, -accelZ);
-                nextVel.addScaledVector(right, accelX);
+                nextVel.addScaledVector(forward, -delta.y * 0.00008);
+                nextVel.addScaledVector(right, delta.x * 0.00008);
 
-                // **COLLISION CHECK (Fixed V1.3):**
-                const playerRay = new THREE.Raycaster(camera.position, nextVel.clone().normalize(), 0, 0.6);
+                const playerRay = new THREE.Raycaster(camera.position, nextVel.clone().normalize(), 0, 0.7);
                 const hits = playerRay.intersectObjects(collidableObjects);
                 
                 if (hits.length === 0) {
                     velocity.copy(nextVel);
                 } else {
-                    velocity.set(0,0,0); // Çarpınca dur
+                    velocity.set(0,0,0);
                 }
             }
-
-            // Hız sınırla
-            if (velocity.length() > WALK_SPEED_LIMIT) {
-                velocity.setLength(WALK_SPEED_LIMIT);
-            }
-
+            
             camera.position.add(velocity);
-            velocity.multiplyScalar(FRICTION); 
-
+            velocity.multiplyScalar(0.85); 
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
