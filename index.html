@@ -1,185 +1,153 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dread Manor: Razel's Curse V5.0 - Legacy</title>
+    <title>Countryball Soccer Mobile</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; user-select: none; font-family: sans-serif; }
+        body { margin: 0; padding: 0; background: #2ecc71; font-family: sans-serif; overflow: hidden; touch-action: none; }
+        #ui { position: absolute; top: 10px; width: 100%; text-align: center; color: white; font-size: 20px; font-weight: bold; pointer-events: none; }
+        canvas { display: block; background: #27ae60; }
         
-        /* Orijinal UI Kopya */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        
-        #stanceBtn { position: absolute; top: 25px; left: 25px; width: 60px; height: 60px; font-size: 40px; color: white; pointer-events: auto; text-shadow: 2px 2px #000; }
-        #itemSlot { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; border: 3px solid #777; background: rgba(0,0,0,0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; }
-        
-        #joystick { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; border: 5px solid rgba(255,255,255,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        #joystickKnob { width: 60px; height: 60px; background: rgba(255,255,255,0.8); border-radius: 50%; }
-        
-        #reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 24px; text-shadow: 2px 2px #000; }
-        
-        #deathScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #500 0%, #000 100%); display: none; align-items: center; justify-content: center; color: white; font-size: 40px; z-index: 100; flex-direction: column; }
+        /* Mobil Kontroller */
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
+        .joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; position: relative; }
+        #joystick { width: 50px; height: 50px; background: white; border-radius: 50%; position: absolute; top: 35px; left: 35px; }
+        #shoot-btn { width: 80px; height: 80px; background: #e74c3c; border: 4px solid white; border-radius: 50%; color: white; font-weight: bold; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
-    <div id="ui-layer">
-        <div id="stanceBtn">🧍</div>
-        <div id="itemSlot">🔨</div> <div id="joystick"><div id="joystickKnob"></div></div>
-        <div id="reticle">•</div>
+
+    <div id="ui">RAZEL LEAGUE | GOL: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls">
+        <div class="joystick-zone" id="joyZone">
+            <div id="joystick"></div>
+        </div>
+        <div id="shoot-btn">ŞUT</div>
     </div>
-    <div id="deathScreen"><div>YAKALANDIN!</div></div>
 
-    <script type="module">
-        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        // --- RENDERER KURULUMU ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a1a);
-        scene.fog = new THREE.Fog(0x1a1a1a, 1, 30); // Karanlığı düzelttik, net görünüm.
+        let score = 0;
+        let player = { x: 100, y: canvas.height/2, r: 35, color: "#e74c3c", vx: 0, vy: 0 };
+        let ball = { x: canvas.width/2, y: canvas.height/2, r: 20, vx: 0, vy: 0 };
+        
+        // Hareket Değişkenleri
+        let joyActive = false;
+        let joyX = 0, joyY = 0;
 
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ReinhardToneMapping;
-        document.body.appendChild(renderer.domElement);
+        // Joystick Mantığı
+        const joyZone = document.getElementById('joyZone');
+        const joystick = document.getElementById('joystick');
 
-        // --- IŞIKLANDIRMA (V1.6 NETLİĞİ) ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5)); // Kabak gibi net ama loş.
-        const pointLight = new THREE.PointLight(0xffffff, 0.7, 15);
-        camera.add(pointLight);
-        scene.add(camera);
+        joyZone.addEventListener('touchstart', (e) => { joyActive = true; });
+        window.addEventListener('touchend', () => { 
+            joyActive = false; 
+            player.vx = 0; player.vy = 0;
+            joystick.style.transform = `translate(0px, 0px)`;
+        });
 
-        // --- DOKULAR VE MATERYALLER ---
-        const texLoader = new THREE.TextureLoader();
-        const woodTex = texLoader.load('https://threejs.org/examples/textures/wood/hardwood2_diffuse.jpg');
-        woodTex.wrapS = woodTex.wrapT = THREE.RepeatWrapping; woodTex.repeat.set(5, 5);
-        const wallTex = texLoader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
-        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-
-        const floorMat = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.8 });
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x889988, roughness: 1 }); // Kirli yeşil/gri duvar
-
-        const collidables = [];
-        const interactables = [];
-
-        function createBox(w, h, d, x, y, z, mat, col = true) {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            m.position.set(x, y, z);
-            scene.add(m);
-            if(col) collidables.push(m);
-            return m;
-        }
-
-        // --- EV REPLİKA (MİMARİ) ---
-        // Zemin ve Bodrum Merdiven Boşluğu
-        createBox(20, 0.2, 20, 0, 0, 0, floorMat); // Zemin
-        createBox(5, 0.2, 5, 5, -2, -5, floorMat); // Bodrum sahanlığı
-
-        // Duvarlar (Orijinal plan gibi)
-        createBox(20, 6, 0.5, 0, 3, -10, wallMat); // Arka
-        createBox(20, 6, 0.5, 0, 3, 10, wallMat);  // Ön
-        createBox(0.5, 6, 20, -10, 3, 0, wallMat); // Sol
-        createBox(0.5, 6, 20, 10, 3, 0, wallMat);  // Sağ
-
-        // Bodrum Merdivenleri (Garantili Fizik Rampası)
-        createBox(3, 0.1, 8, 5, -1, -1, new THREE.MeshBasicMaterial({visible:false})).rotation.x = 0.45;
-        for(let i=0; i<10; i++) createBox(3, 0.3, 0.6, 5, -i*0.2, -4 + i*0.48, wallMat, false);
-
-        // --- EŞYA: FOTOĞRAFTAKİ VAZO (Replika) ---
-        function addFurnitureReplica() {
-            const woodMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1a, roughness: 1 });
-            const vaseMat = new THREE.MeshStandardMaterial({ color: 0xaa4444 });
-
-            // Ahşap Stand
-            createBox(0.8, 1.2, 0.8, -6, 0.6, -7, woodMat);
+        window.addEventListener('touchmove', (e) => {
+            if (!joyActive) return;
+            let touch = e.touches[0];
+            let rect = joyZone.getBoundingClientRect();
+            let centerX = rect.left + rect.width/2;
+            let centerY = rect.top + rect.height/2;
             
-            // Vazo (Fotoğraftaki gibi standın üstünde)
-            const vaseGroup = new THREE.Group();
-            const vBody = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.6), vaseMat);
-            vBody.position.y = 1.5;
-            vaseGroup.add(vBody); vaseGroup.position.set(-6, 0, -7);
-            scene.add(vaseGroup);
-            interactables.push({ mesh: vaseGroup, type: 'vase' });
-        }
-        addFurnitureReplica();
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            let maxDist = 40;
 
-        // --- GRANNY AI ---
-        const gBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.2), new THREE.MeshStandardMaterial({color: 0x330000}));
-        const gEyes = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 'red'}));
-        gEyes.position.set(0, 0.6, 0.35);
-        const granny = new THREE.Group(); granny.add(gBody, gEyes);
-        granny.position.set(0, 1, -8);
-        scene.add(granny);
+            if (dist > maxDist) {
+                dx *= maxDist / dist;
+                dy *= maxDist / dist;
+            }
 
-        // --- KONTROLLER (UI'A UYGUN) ---
-        let moveS = new THREE.Vector2(), moveC = new THREE.Vector2(), moveActive = false, moveTouchId = null;
-        let yaw = 0, pitch = 0, vel = new THREE.Vector3(), lookTouchId = null, lastLook = new THREE.Vector2();
-        let isCrouching = false;
+            joystick.style.transform = `translate(${dx}px, ${dy}px)`;
+            player.vx = dx * 0.15;
+            player.vy = dy * 0.15;
+        });
 
-        window.addEventListener('touchstart', e => {
-            for(let t of e.changedTouches) {
-                if(t.target.id === 'stanceBtn') { isCrouching = !isCrouching; return; }
-                if(t.clientX < window.innerWidth/2) { moveTouchId = t.identifier; moveActive = true; moveS.set(t.clientX, t.clientY); moveC.set(t.clientX, t.clientY); }
-                else { lookTouchId = t.identifier; lastLook.set(t.clientX, t.clientY); }
+        // Şut Butonu
+        document.getElementById('shoot-btn').addEventListener('touchstart', () => {
+            let dx = ball.x - player.x;
+            let dy = ball.y - player.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 70) { // Topa yakınsa vur
+                ball.vx = dx * 0.5;
+                ball.vy = dy * 0.5;
             }
         });
 
-        window.addEventListener('touchmove', e => {
-            for(let t of e.changedTouches) {
-                if(t.identifier === moveTouchId) {
-                    moveC.set(t.clientX, t.clientY);
-                    let dx = moveC.x - moveS.x; let dy = moveC.y - moveS.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if(dist > 35) { dx=(dx/dist)*35; dy=(dy/dist)*35; }
-                    document.getElementById('joystickKnob').style.transform = `translate(${dx}px, ${dy}px)`;
-                } else if(t.identifier === lookTouchId) {
-                    yaw -= (t.clientX - lastLook.x) * 0.005;
-                    pitch -= (t.clientY - lastLook.y) * 0.005;
-                    pitch = Math.max(-1.4, Math.min(1.4, pitch));
-                    lastLook.set(t.clientX, t.clientY);
+        function update() {
+            // Oyuncu Hareket
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Top Hareket & Fizik
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+            ball.vx *= 0.98; ball.vy *= 0.98; // Sürtünme
+
+            // Top ve Oyuncu Çarpışması
+            let dx = ball.x - player.x;
+            let dy = ball.y - player.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < player.r + ball.r) {
+                ball.vx = dx * 0.2;
+                ball.vy = dy * 0.2;
+            }
+
+            // Kale ve Gol Kontrolü (Sağ taraf kale)
+            if (ball.x > canvas.width - ball.r) {
+                if (ball.y > canvas.height/3 && ball.y < (canvas.height/3)*2) {
+                    score++;
+                    scoreEl.innerText = score;
+                    ball.x = canvas.width/2; ball.y = canvas.height/2;
+                    ball.vx = 0; ball.vy = 0;
+                } else {
+                    ball.vx *= -1;
                 }
             }
-        });
-
-        window.addEventListener('touchend', e => {
-            for(let t of e.changedTouches) {
-                if(t.identifier === moveTouchId) { moveActive = false; moveTouchId=null; vel.set(0,0,0); document.getElementById('joystickKnob').style.transform = `translate(0px, 0px)`; }
-                if(t.identifier === lookTouchId) lookTouchId = null;
-            }
-        });
-
-        camera.position.set(0, 1.7, 7);
-
-        function animate() {
-            requestAnimationFrame(animate);
             
-            // Kamera Yüksekliği (Eğilme Fix)
-            const targetH = isCrouching ? 0.9 : 1.7;
-            camera.position.y += (targetH - camera.position.y) * 0.1;
-            camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+            // Sınırlar
+            if (ball.x < ball.r) ball.vx *= -1;
+            if (ball.y < ball.r || ball.y > canvas.height - ball.r) ball.vy *= -1;
 
-            if(moveActive) {
-                const dirX = (moveC.x - moveS.x) * 0.001;
-                const dirY = (moveC.y - moveS.y) * 0.001;
-                const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-                const rgt = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
-                fwd.y = 0; rgt.y = 0; fwd.normalize(); rgt.normalize();
-                let nV = vel.clone();
-                const speedMult = isCrouching ? 0.4 : 0.8;
-                nV.addScaledVector(fwd, -dirY * speedMult); nV.addScaledVector(rgt, dirX * speedMult);
-                const ray = new THREE.Raycaster(camera.position, nV.clone().normalize(), 0, 0.8);
-                if(ray.intersectObjects(collidables).length === 0) vel.copy(nV);
-            }
-            camera.position.add(vel); vel.multiplyScalar(0.85);
-
-            // Granny AI (Dengeli)
-            const dirToP = new THREE.Vector3().subVectors(camera.position, granny.position).normalize();
-            dirToP.y = 0; granny.position.add(dirToP.multiplyScalar(0.04)); granny.lookAt(camera.position.x, granny.position.y, camera.position.z);
-            if(granny.position.distanceTo(camera.position) < 1.4) document.getElementById('deathScreen').style.display = 'flex';
-
-            renderer.render(scene, camera);
+            draw();
+            requestAnimationFrame(update);
         }
-        animate();
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Saha Çizgileri
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.lineWidth = 5;
+            ctx.strokeRect(0, canvas.height/3, canvas.width, canvas.height/3);
+
+            // Oyuncu (Countryball)
+            ctx.fillStyle = player.color;
+            ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "white"; // Gözler
+            ctx.beginPath(); ctx.arc(player.x-10, player.y-5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(player.x+10, player.y-5, 6, 0, Math.PI*2); ctx.fill();
+
+            // Top
+            ctx.fillStyle = "white";
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+        }
+
+        update();
     </script>
 </body>
 </html>
