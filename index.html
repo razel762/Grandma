@@ -3,161 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dread Manor: Razel's Curse - V2.0</title>
+    <title>Dread Manor: Razel's Curse - THE AI UPDATE</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; }
-        #overlay {
-            position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif;
-            pointer-events: none; text-shadow: 2px 2px 4px #000; z-index: 10; font-size: 14px;
-        }
-        #interactBtn {
-            position: absolute; bottom: 20%; right: 10%; width: 70px; height: 70px;
-            background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 50%;
-            display: none; align-items: center; justify-content: center;
-            color: white; font-size: 30px; z-index: 20; font-family: sans-serif;
-        }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; touch-action: none; user-select: none; }
+        #overlay { position: absolute; top: 10px; left: 10px; color: #ff0000; text-shadow: 2px 2px #000; font-weight: bold; pointer-events: none; }
+        #inventory { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: gold; font-size: 18px; text-shadow: 1px 1px #000; }
+        #interactBtn { position: absolute; bottom: 100px; right: 40px; width: 80px; height: 80px; background: rgba(255,0,0,0.3); border: 3px solid #fff; border-radius: 50%; display: none; align-items: center; justify-content: center; color: white; font-size: 40px; z-index: 100; }
+        #deathScreen { position: absolute; width: 100%; height: 100%; background: black; color: red; display: none; align-items: center; justify-content: center; font-size: 50px; z-index: 1000; }
     </style>
 </head>
 <body>
-    <div id="overlay">DREAD MANOR: RAZEL'S CURSE V2.0 <br> DEVELOPER: BURAK (RAZEL) - TEST MODE</div>
+    <div id="overlay">DREAD MANOR: RAZEL'S CURSE <br> DEVELOPER: BURAK (RAZEL)</div>
+    <div id="inventory">Envanter: Boş</div>
     <div id="interactBtn">✋</div>
+    <div id="deathScreen">YAKALANDIN!</div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.15);
-        
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 100);
+        scene.fog = new THREE.FogExp2(0x050505, 0.15);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
         // --- IŞIKLANDIRMA ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.15));
-        const flashLight = new THREE.PointLight(0xffffff, 1.2, 12); 
-        camera.add(flashLight);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.1);
+        scene.add(ambient);
+        const spot = new THREE.SpotLight(0xffffff, 1.5, 15, Math.PI/4, 0.5);
+        camera.add(spot);
         scene.add(camera);
 
-        // --- SES SİSTEMİ ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playStep() {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-        }
-
-        // --- MATERYALLER ---
-        const loader = new THREE.TextureLoader();
-        const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
-        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x333333, roughness: 0.8 });
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.9 });
-        const bedMat = new THREE.MeshStandardMaterial({ color: 0x441111 });
-
+        // --- DEĞİŞKENLER ---
+        let inventory = null;
         const collidables = [];
         const interactables = [];
+        let grannyAI = { mesh: null, state: 'patrol', speed: 0.03, target: new THREE.Vector3() };
 
-        function createBox(w, h, d, x, y, z, mat, col = true) {
-            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            m.position.set(x, y, z);
-            scene.add(m);
-            if(col) collidables.push(m);
-            return m;
-        }
-
-        // --- EŞYA MODELLERİ ---
-        function addFurniture() {
-            // 1. Koltuk (Sofa)
-            const sofa = new THREE.Group();
-            sofa.add(createBox(3, 0.5, 1.2, 0, 0.4, 0, woodMat)); // Oturak
-            sofa.add(createBox(3, 1, 0.2, 0, 1, -0.6, woodMat)); // Arka
-            sofa.position.set(-4, 0, -2);
-            scene.add(sofa);
-
-            // 2. Yatak (Bed)
-            const bed = new THREE.Group();
-            bed.add(createBox(2, 0.6, 4, 0, 0.3, 0, bedMat)); // Yatak
-            bed.add(createBox(2, 1.2, 0.1, 0, 0.6, -2, woodMat)); // Başlık
-            bed.position.set(4, 0, -2);
-            scene.add(bed);
-
-            // 3. Masa (Table)
-            const table = new THREE.Group();
-            table.add(createBox(2, 0.1, 1.5, 0, 1, 0, woodMat)); // Üst
-            table.add(createBox(0.1, 1, 0.1, 0.9, 0.5, 0.6, woodMat)); // Ayaklar
-            table.add(createBox(0.1, 1, 0.1, -0.9, 0.5, 0.6, woodMat));
-            table.add(createBox(0.1, 1, 0.1, 0.9, 0.5, -0.6, woodMat));
-            table.add(createBox(0.1, 1, 0.1, -0.9, 0.5, -0.6, woodMat));
-            table.position.set(0, 0, -5);
-            scene.add(table);
-        }
-        addFurniture();
-
-        // --- EV VE KAPILAR ---
-        function createDoor(x, y, z, label = "") {
-            const doorGroup = new THREE.Group();
-            const doorWing = new THREE.Mesh(new THREE.BoxGeometry(2, 3.5, 0.2), doorMat);
-            doorWing.position.set(1, 0, 0); 
-            doorGroup.add(doorWing);
-            doorGroup.position.set(x - 1, y + 1.75, z);
-            scene.add(doorGroup);
-            interactables.push({ mesh: doorGroup, open: false, angle: 0 });
-            collidables.push(doorWing);
-        }
-
+        // --- MATERYALLER ---
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x332222 });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const doorMat = new THREE.MeshStandardMaterial({ color: 0x4d2a15 });
-        createBox(20, 0.1, 20, 0, 0, 0, new THREE.MeshStandardMaterial({color:0x111111}), false);
-        createBox(20, 4, 0.5, 0, 2, -10, wallMat);
-        createBox(20, 4, 0.5, 0, 2, 10, wallMat);
-        createBox(0.5, 4, 20, -10, 2, 0, wallMat);
-        createBox(0.5, 4, 20, 10, 2, 0, wallMat);
-        
-        // Çıkış Kapısı (Hemen sağında)
-        createDoor(5, 0, 9.8); 
 
-        // --- MERDİVEN VE ÜST KAT ---
-        for(let i=0; i<13; i++) createBox(2.5, 0.35, 0.5, 8, i*0.32, 5 - i*0.4, wallMat);
-        createBox(2.5, 0.1, 6.5, 8, 2, 2.8, new THREE.MeshBasicMaterial({visible:false})).rotation.x = -0.68;
+        // --- EV İNŞA FONKSİYONU ---
+        function createWall(w, h, d, x, y, z) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
+            m.position.set(x,y,z);
+            scene.add(m);
+            collidables.push(m);
+        }
+
+        // Kat 1, 2, 3
+        for(let i=0; i<3; i++) {
+            const y = i * 5;
+            // Zemin
+            const f = new THREE.Mesh(new THREE.BoxGeometry(20, 0.2, 20), floorMat);
+            f.position.y = y;
+            scene.add(f);
+            // Duvarlar
+            createWall(20, 5, 0.5, 0, y+2.5, -10);
+            createWall(20, 5, 0.5, 0, y+2.5, 10);
+            createWall(0.5, 5, 20, -10, y+2.5, 0);
+            createWall(0.5, 5, 20, 10, y+2.5, 0);
+        }
+
+        // Merdiven (Gelişmiş Tip)
+        const stairRamp = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 8), new THREE.MeshBasicMaterial({visible:false}));
+        stairRamp.rotation.x = -0.65;
+        stairRamp.position.set(7, 2.5, 2);
+        scene.add(stairRamp);
+        collidables.push(stairRamp);
+        for(let j=0; j<15; j++) {
+            const step = new THREE.Mesh(new THREE.BoxGeometry(3, 0.4, 0.6), wallMat);
+            step.position.set(7, j*0.35, 5 - j*0.45);
+            scene.add(step);
+        }
+
+        // --- EŞYALAR ---
+        const key = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.05), new THREE.MeshStandardMaterial({color: 'gold'}));
+        key.position.set(-5, 1, -5);
+        scene.add(key);
+        interactables.push({ mesh: key, type: 'item', name: 'Master Key' });
+
+        // --- GRANNY (DÜŞMAN) ---
+        const gBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.2), new THREE.MeshStandardMaterial({color: 0x333333}));
+        const gEyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({color: 'red'}));
+        const gEyeR = gEyeL.clone();
+        gEyeL.position.set(0.15, 0.6, 0.3); gEyeR.position.set(-0.15, 0.6, 0.3);
+        grannyAI.mesh = new THREE.Group();
+        grannyAI.mesh.add(gBody, gEyeL, gEyeR);
+        grannyAI.mesh.position.set(0, 1, -8);
+        scene.add(grannyAI.mesh);
 
         // --- KONTROLLER ---
-        let moveTouchId = null, lookTouchId = null;
-        let moveStart = new THREE.Vector2(), moveCurrent = new THREE.Vector2();
-        let lookLast = new THREE.Vector2(), yaw = 0, pitch = 0, vel = new THREE.Vector3();
-        let stepT = 0;
+        let moveId = null, lookId = null, moveS = new THREE.Vector2(), moveC = new THREE.Vector2(), lookL = new THREE.Vector2();
+        let yaw = 0, pitch = 0, vel = new THREE.Vector3();
         const btn = document.getElementById('interactBtn');
         let currentT = null;
 
         window.addEventListener('touchstart', e => {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
             for(let t of e.changedTouches) {
-                if(t.target === btn) { if(currentT) currentT.open = !currentT.open; return; }
-                if(t.clientX < window.innerWidth/2) { moveTouchId=t.identifier; moveStart.set(t.clientX, t.clientY); moveCurrent.set(t.clientX, t.clientY); }
-                else { lookTouchId=t.identifier; lookLast.set(t.clientX, t.clientY); }
+                if(t.target === btn) { 
+                    if(currentT && currentT.type === 'item') {
+                        inventory = currentT.name;
+                        document.getElementById('inventory').innerText = "Envanter: " + inventory;
+                        scene.remove(currentT.mesh);
+                    }
+                    return; 
+                }
+                if(t.clientX < window.innerWidth/2) { moveId=t.identifier; moveS.set(t.clientX, t.clientY); moveC.set(t.clientX, t.clientY); }
+                else { lookId=t.identifier; lookL.set(t.clientX, t.clientY); }
             }
         });
 
         window.addEventListener('touchmove', e => {
             for(let t of e.changedTouches) {
-                if(t.identifier === moveTouchId) moveCurrent.set(t.clientX, t.clientY);
-                else if(t.identifier === lookTouchId) {
-                    yaw -= (t.clientX - lookLast.x) * 0.004;
-                    pitch -= (t.clientY - lookLast.y) * 0.004;
+                if(t.identifier === moveId) moveC.set(t.clientX, t.clientY);
+                else if(t.identifier === lookId) {
+                    yaw -= (t.clientX - lookL.x) * 0.006;
+                    pitch -= (t.clientY - lookL.y) * 0.006;
                     pitch = Math.max(-1.4, Math.min(1.4, pitch));
-                    lookLast.set(t.clientX, t.clientY);
+                    lookL.set(t.clientX, t.clientY);
                 }
             }
         });
 
         window.addEventListener('touchend', e => {
-            for(let t of e.changedTouches) {
-                if(t.identifier === moveTouchId) moveTouchId = null;
-                if(t.identifier === lookTouchId) lookTouchId = null;
-            }
+            for(let t of e.changedTouches) { if(t.identifier === moveId) moveId = null; if(t.identifier === lookId) lookId = null; }
         });
 
         camera.position.set(0, 1.7, 5);
@@ -166,32 +139,38 @@
             requestAnimationFrame(animate);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            if (moveTouchId !== null) {
-                const d = moveCurrent.clone().sub(moveStart);
+            // Karakter Hareketi
+            if (moveId !== null) {
+                const d = moveC.clone().sub(moveS);
                 const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
                 const rgt = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
                 fwd.y = 0; rgt.y = 0; fwd.normalize(); rgt.normalize();
                 let nV = vel.clone();
-                nV.addScaledVector(fwd, -d.y * 0.00007);
-                nV.addScaledVector(rgt, d.x * 0.00007);
-                const ray = new THREE.Raycaster(camera.position, nV.clone().normalize(), 0, 0.7);
-                if(ray.intersectObjects(collidables).length === 0) {
-                    vel.copy(nV);
-                    stepT += vel.length();
-                    if(stepT > 0.35) { playStep(); stepT = 0; }
-                } else vel.set(0,0,0);
+                nV.addScaledVector(fwd, -d.y * 0.0001);
+                nV.addScaledVector(rgt, d.x * 0.0001);
+                const ray = new THREE.Raycaster(camera.position, nV.clone().normalize(), 0, 0.8);
+                if(ray.intersectObjects(collidables).length === 0) vel.copy(nV);
             }
-
-            btn.style.display = 'none'; currentT = null;
-            interactables.forEach(o => {
-                if(camera.position.distanceTo(o.mesh.position) < 3) { btn.style.display = 'flex'; currentT = o; }
-                o.angle = THREE.MathUtils.lerp(o.angle, o.open ? -Math.PI/1.5 : 0, 0.1);
-                o.mesh.rotation.y = o.angle;
-            });
-
-            if(vel.length() > 0.06) vel.setLength(0.06);
             camera.position.add(vel);
             vel.multiplyScalar(0.85);
+
+            // Granny AI Zekası
+            const distToPlayer = grannyAI.mesh.position.distanceTo(camera.position);
+            if(distToPlayer < 8) { // Yakındaysa kovalar
+                grannyAI.state = 'chase';
+                const dir = new THREE.Vector3().subVectors(camera.position, grannyAI.mesh.position).normalize();
+                dir.y = 0;
+                grannyAI.mesh.position.add(dir.multiplyScalar(0.045));
+                grannyAI.mesh.lookAt(camera.position.x, 1, camera.position.z);
+            }
+            if(distToPlayer < 1.2) { document.getElementById('deathScreen').style.display = 'flex'; }
+
+            // Etkileşim
+            btn.style.display = 'none'; currentT = null;
+            interactables.forEach(o => {
+                if(o.mesh.parent && camera.position.distanceTo(o.mesh.position) < 2.5) { btn.style.display = 'flex'; currentT = o; }
+            });
+
             renderer.render(scene, camera);
         }
         animate();
