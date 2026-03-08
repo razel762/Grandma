@@ -3,45 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Granny Pro - Profesyonel Touch Kontrol</title>
+    <title>Granny Pro - Developer: SNOWY DEXRY WEXRY</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #111; touch-action: none; user-select: none; }
         #overlay {
-            position: absolute; top: 10px; left: 10px; color: #666; font-family: sans-serif;
-            pointer-events: none; text-transform: uppercase; letter-spacing: 2px;
+            position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif;
+            pointer-events: none; text-shadow: 2px 2px 4px #000; z-index: 10;
+        }
+        /* Yükleniyor yazısı */
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-family: sans-serif;
         }
     </style>
 </head>
 <body>
-    <div id="overlay">Granny Test v1.0 - Developer: SNOWY DEXRY WEXRY</div>
-
-    <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-    </script>
+    <div id="overlay">GRANNY TEST V1.1 - DEVELOPER: SNOWY DEXRY WEXRY</div>
+    <div id="loading">Yükleniyor...</div>
 
     <script type="module">
-        import * as THREE from 'three';
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // --- SAHNE KURULUMU ---
+        // Sahne Hazırlığı
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.12);
+        scene.background = new THREE.Color(0x050505); // Arka plan tamamen siyah olmasın
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
+        document.getElementById('loading').style.display = 'none';
 
-        // Kasvetli Işık (El Feneri Etkisi)
-        const flashLight = new THREE.SpotLight(0xffffff, 2, 15, Math.PI/4, 0.5);
+        // IŞIKLANDIRMA (Burayı güçlendirdim ki ekran siyah kalmasın)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Genel ortam aydınlatması
+        scene.add(ambientLight);
+
+        const flashLight = new THREE.PointLight(0xffffff, 1.5, 20); // Oyuncunun önündeki ışık
         camera.add(flashLight);
-        camera.add(flashLight.target);
-        flashLight.target.position.z = -1;
         scene.add(camera);
 
-        // --- 3 KATLI EV ---
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x221a15 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x110d0a });
+        // 3 KATLI EV TASARIMI
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x554433 }); // Daha belirgin kahverengi
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
 
         function createFloor(y) {
             const group = new THREE.Group();
@@ -49,28 +53,30 @@
             const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.2, 20), floorMat);
             floor.position.y = y;
             group.add(floor);
-            // Dış Duvarlar
-            const wallData = [[0, -10, 20, 0.4], [0, 10, 20, 0.4], [-10, 0, 0.4, 20], [10, 0, 0.4, 20]];
-            wallData.forEach(d => {
-                const w = new THREE.Mesh(new THREE.BoxGeometry(d[2], 4, d[3]), wallMat);
-                w.position.set(d[0], y + 2, d[1]);
-                group.add(w);
+            // Duvarlar
+            const walls = [
+                {p:[0, -10], s:[20, 4, 0.5]}, {p:[0, 10], s:[20, 4, 0.5]},
+                {p:[-10, 0], s:[0.5, 4, 20]}, {p:[10, 0], s:[0.5, 4, 20]}
+            ];
+            walls.forEach(w => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
+                mesh.position.set(w.p[0], y + 2, w.p[1]);
+                group.add(mesh);
             });
             return group;
         }
 
         for(let i=0; i<3; i++) scene.add(createFloor(i * 4));
 
-        // Merdiven Rampaları
-        const stairMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
+        // Merdivenler
         for(let i=0; i<2; i++) {
-            const s = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 8), stairMat);
-            s.rotation.x = -0.55;
-            s.position.set(6, (i*4)+2, 0);
+            const s = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 10), wallMat);
+            s.rotation.x = -0.5;
+            s.position.set(5, (i*4)+1.8, 0);
             scene.add(s);
         }
 
-        // --- PROFESYONEL DOKUNMATİK KONTROLLER ---
+        // KONTROLLER (İstediğin gibi parmak kaydırmalı)
         let moveTouchId = null, lookTouchId = null;
         let moveStart = new THREE.Vector2(), moveCurrent = new THREE.Vector2();
         let lookLast = new THREE.Vector2();
@@ -78,13 +84,12 @@
         let velocity = new THREE.Vector3();
 
         window.addEventListener('touchstart', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (t.clientX < window.innerWidth / 2 && moveTouchId === null) {
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2) {
                     moveTouchId = t.identifier;
                     moveStart.set(t.clientX, t.clientY);
                     moveCurrent.set(t.clientX, t.clientY);
-                } else if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+                } else {
                     lookTouchId = t.identifier;
                     lookLast.set(t.clientX, t.clientY);
                 }
@@ -92,28 +97,22 @@
         });
 
         window.addEventListener('touchmove', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
+            for (let t of e.changedTouches) {
                 if (t.identifier === moveTouchId) {
                     moveCurrent.set(t.clientX, t.clientY);
                 } else if (t.identifier === lookTouchId) {
-                    const dx = t.clientX - lookLast.x;
-                    const dy = t.clientY - lookLast.y;
-                    
-                    yaw -= dx * 0.004; // Dönüş hızı
-                    pitch -= dy * 0.004;
-                    pitch = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, pitch));
-                    
+                    yaw -= (t.clientX - lookLast.x) * 0.005;
+                    pitch -= (t.clientY - lookLast.y) * 0.005;
+                    pitch = Math.max(-1.5, Math.min(1.5, pitch));
                     lookLast.set(t.clientX, t.clientY);
                 }
             }
         });
 
         window.addEventListener('touchend', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                if (t.identifier === moveTouchId) { moveTouchId = null; }
-                if (t.identifier === lookTouchId) { lookTouchId = null; }
+            for (let t of e.changedTouches) {
+                if (t.identifier === moveTouchId) moveTouchId = null;
+                if (t.identifier === lookTouchId) lookTouchId = null;
             }
         });
 
@@ -121,37 +120,22 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
-            // Bakış Güncelleme
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
-            // Hareket Hesaplama
             if (moveTouchId !== null) {
-                const dirX = moveCurrent.x - moveStart.x;
-                const dirZ = moveCurrent.y - moveStart.y;
-                
+                const dirX = (moveCurrent.x - moveStart.x) * 0.0005;
+                const dirZ = (moveCurrent.y - moveStart.y) * 0.0005;
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                forward.y = 0; right.y = 0; 
-                forward.normalize(); right.normalize();
-
-                const speed = 0.0015; // Yürüme hassasiyeti
-                velocity.addScaledVector(forward, -dirZ * speed);
-                velocity.addScaledVector(right, dirX * speed);
+                forward.y = 0; right.y = 0;
+                velocity.addScaledVector(forward, -dirZ * 20);
+                velocity.addScaledVector(right, dirX * 20);
             }
-
             camera.position.add(velocity);
-            velocity.multiplyScalar(0.85); // Yumuşak duruş (Sürtünme)
-
+            velocity.multiplyScalar(0.8); 
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
