@@ -3,93 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Granny Pro - Developer: SNOWY DEXRY WEXRY</title>
+    <title>Granny Pro - Test V1.2</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; touch-action: none; user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #050505; touch-action: none; user-select: none; }
         #overlay {
             position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif;
-            pointer-events: none; text-shadow: 2px 2px 4px #000; z-index: 10;
-        }
-        /* Yükleniyor yazısı */
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: white; font-family: sans-serif;
+            pointer-events: none; text-shadow: 2px 2px 4px #000; z-index: 10; font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <div id="overlay">GRANNY TEST V1.1 - DEVELOPER: SNOWY DEXRY WEXRY</div>
-    <div id="loading">Yükleniyor...</div>
+    <div id="overlay">GRANNY PRO V1.2 - SNOWY DEXRY WEXRY</div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
-        // Sahne Hazırlığı
+        // --- SAHNE VE AYDINLATMA ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505); // Arka plan tamamen siyah olmasın
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.2); // Karanlık ve puslu atmosfer
         
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 100);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
-        document.getElementById('loading').style.display = 'none';
 
-        // IŞIKLANDIRMA (Burayı güçlendirdim ki ekran siyah kalmasın)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Genel ortam aydınlatması
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // Çok kısık genel ışık
         scene.add(ambientLight);
 
-        const flashLight = new THREE.PointLight(0xffffff, 1.5, 20); // Oyuncunun önündeki ışık
+        const flashLight = new THREE.PointLight(0xffffff, 1.2, 10); // Yakın aydınlatma
+        flashLight.position.set(0, 0, 0.2);
         camera.add(flashLight);
         scene.add(camera);
 
-        // 3 KATLI EV TASARIMI
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x554433 }); // Daha belirgin kahverengi
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        // --- MATERYALLER ---
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x4d3b2e });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c });
+        const stairMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1a });
 
+        // --- EV VE ODALAR (V1.2 Yenilik: İç Duvarlar) ---
         function createFloor(y) {
             const group = new THREE.Group();
+            
             // Zemin
-            const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.2, 20), floorMat);
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(18, 0.1, 18), floorMat);
             floor.position.y = y;
             group.add(floor);
-            // Duvarlar
-            const walls = [
-                {p:[0, -10], s:[20, 4, 0.5]}, {p:[0, 10], s:[20, 4, 0.5]},
-                {p:[-10, 0], s:[0.5, 4, 20]}, {p:[10, 0], s:[0.5, 4, 20]}
+
+            // Dış Duvarlar
+            const extWalls = [
+                {p:[0, -9], s:[18, 3.5, 0.4]}, {p:[0, 9], s:[18, 3.5, 0.4]},
+                {p:[-9, 0], s:[0.4, 3.5, 18]}, {p:[9, 0], s:[0.4, 3.5, 18]}
             ];
-            walls.forEach(w => {
+            extWalls.forEach(w => {
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
-                mesh.position.set(w.p[0], y + 2, w.p[1]);
+                mesh.position.set(w.p[0], y + 1.75, w.p[1]);
                 group.add(mesh);
             });
+
+            // İç Odalar (Koridor ve 2 Oda)
+            // Zemin kat: Koridor (3m genişlik), 1 Büyük Oda, 1 Küçük Oda
+            const inWalls = [
+                {p:[ -1.5, -4.5], s:[15, 3.5, 0.2]}, // Ana Koridor Duvarı
+                {p:[ -1.5, 0], s:[0.2, 3.5, 9]},     // Oda Ayırıcı Duvar
+                {p:[ -6, 0], s:[6, 3.5, 0.2]}      // Küçük Oda Kapı Üstü
+            ];
+            inWalls.forEach(w => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.s[0], w.s[1], w.s[2]), wallMat);
+                mesh.position.set(w.p[0], y + 1.75, w.p[1]);
+                group.add(mesh);
+            });
+
             return group;
         }
 
-        for(let i=0; i<3; i++) scene.add(createFloor(i * 4));
+        for(let i=0; i<3; i++) scene.add(createFloor(i * 3.5));
 
-        // Merdivenler
+        // Merdivenler (Daha yavaş çıkmak için rampayı uzattım)
         for(let i=0; i<2; i++) {
-            const s = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 10), wallMat);
-            s.rotation.x = -0.5;
-            s.position.set(5, (i*4)+1.8, 0);
+            const s = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 8.5), stairMat);
+            s.rotation.x = -0.45;
+            s.position.set(6, (i*3.5)+1.5, 0);
             scene.add(s);
         }
 
-        // KONTROLLER (İstediğin gibi parmak kaydırmalı)
+        // --- SAKLANMA OBJELERİ (PROTOTİP) ---
+        // Yatak (Beyaz) - Zemin Kat Oda 1
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 3.5), new THREE.MeshStandardMaterial({color: 0xdddddd}));
+        bed.position.set(-5, 0.25, -6);
+        scene.add(bed);
+
+        // Dolap (Koyu Kahve) - Zemin Kat Oda 1
+        const closet = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.8, 0.8), new THREE.MeshStandardMaterial({color: 0x2d1b0a}));
+        closet.position.set(-8.2, 1.4, -6);
+        scene.add(closet);
+
+        // --- PROFESYONEL VE YAVAŞ DOKUNMATİK KONTROLLER (FIXED V1.2) ---
         let moveTouchId = null, lookTouchId = null;
         let moveStart = new THREE.Vector2(), moveCurrent = new THREE.Vector2();
         let lookLast = new THREE.Vector2();
         let yaw = 0, pitch = 0;
         let velocity = new THREE.Vector3();
 
+        // **KONTROL AYARLARI**
+        const WALK_SPEED_LIMIT = 0.05; // Yürüme hızı sınırı (Yarıya düşürüldü)
+        const WALK_ACCEL = 0.001;     // Yürüme ivmesi (Hızlanma)
+        const LOOK_SENSITIVITY = 0.0035; // Bakış hassasiyeti (Çok daha yavaş)
+        const FRICTION = 0.82;          // Sürtünme (Tok duruş)
+
         window.addEventListener('touchstart', (e) => {
             for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2) {
+                if (t.clientX < window.innerWidth / 2 && moveTouchId === null) {
                     moveTouchId = t.identifier;
                     moveStart.set(t.clientX, t.clientY);
                     moveCurrent.set(t.clientX, t.clientY);
-                } else {
+                } else if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
                     lookTouchId = t.identifier;
                     lookLast.set(t.clientX, t.clientY);
                 }
@@ -101,9 +129,10 @@
                 if (t.identifier === moveTouchId) {
                     moveCurrent.set(t.clientX, t.clientY);
                 } else if (t.identifier === lookTouchId) {
-                    yaw -= (t.clientX - lookLast.x) * 0.005;
-                    pitch -= (t.clientY - lookLast.y) * 0.005;
-                    pitch = Math.max(-1.5, Math.min(1.5, pitch));
+                    // **LOOK FIX:** Hassasiyet düşürüldü
+                    yaw -= (t.clientX - lookLast.x) * LOOK_SENSITIVITY;
+                    pitch -= (t.clientY - lookLast.y) * LOOK_SENSITIVITY;
+                    pitch = Math.max(-1.45, Math.min(1.45, pitch)); // Kafa açısını kısıtla
                     lookLast.set(t.clientX, t.clientY);
                 }
             }
@@ -116,26 +145,46 @@
             }
         });
 
-        camera.position.set(0, 1.7, 5);
+        // Oyuncu başlangıç pozisyonu (Koridorda)
+        camera.position.set(0, 1.6, 6);
 
         function animate() {
             requestAnimationFrame(animate);
             camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
 
+            // **MOVE FIX:** Yürüme hızı ve ivmesi profesyonelleştirildi
             if (moveTouchId !== null) {
-                const dirX = (moveCurrent.x - moveStart.x) * 0.0005;
-                const dirZ = (moveCurrent.y - moveStart.y) * 0.0005;
+                const delta = moveCurrent.clone().sub(moveStart);
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                forward.y = 0; right.y = 0;
-                velocity.addScaledVector(forward, -dirZ * 20);
-                velocity.addScaledVector(right, dirX * 20);
+                forward.y = 0; right.y = 0; // Uçmayı engelle
+                forward.normalize(); right.normalize();
+
+                // Parmağı ne kadar sürüklediğine göre ivme ver, ama sınırı aşma
+                const accelX = Math.max(-0.01, Math.min(0.01, delta.x * 0.0001));
+                const accelZ = Math.max(-0.01, Math.min(0.01, delta.y * 0.0001));
+
+                velocity.addScaledVector(forward, -accelZ);
+                velocity.addScaledVector(right, accelX);
             }
+
+            // Hız sınırla
+            if (velocity.length() > WALK_SPEED_LIMIT) {
+                velocity.setLength(WALK_SPEED_LIMIT);
+            }
+
             camera.position.add(velocity);
-            velocity.multiplyScalar(0.8); 
+            velocity.multiplyScalar(FRICTION); // Yumuşak ama tok duruş
+
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
