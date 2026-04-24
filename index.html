@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabii Checker | Developer</title>
+    <title>Tabii Creator | Developer</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg: #0b0e14;
-            --card: #151b23;
-            --accent: #22c55e; /* Başarı için yeşil tonu */
-            --input-bg: #0d1117;
+            --bg: #0d1117;
+            --card: #161b22;
+            --accent: #58a6ff;
+            --success: #238636;
             --border: #30363d;
             --text: #c9d1d9;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             display: flex;
@@ -26,99 +26,96 @@
             margin: 0;
         }
 
-        .checker-card {
+        .creator-card {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
 
-        .header { text-align: center; margin-bottom: 24px; }
-        .header h2 { margin: 0; color: #fff; font-size: 20px; }
-        .header span { font-size: 12px; color: #8b949e; letter-spacing: 1px; }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h2 { margin: 0; color: #ffffff; font-size: 22px; text-transform: uppercase; }
+        .header p { font-size: 11px; color: var(--accent); margin-top: 5px; font-weight: bold; }
 
-        .input-box { margin-bottom: 16px; position: relative; }
-        .input-box i { position: absolute; left: 12px; top: 38px; color: #8b949e; }
-        
+        .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 8px; font-size: 13px; color: #8b949e; }
         
         input {
             width: 100%;
-            padding: 10px 10px 10px 35px;
-            background: var(--input-bg);
+            padding: 12px;
+            background: #010409;
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 8px;
             color: #fff;
             box-sizing: border-box;
-            transition: 0.2s;
+            outline: none;
         }
 
-        input:focus { border-color: #58a6ff; outline: none; box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
+        input:focus { border-color: var(--accent); }
 
         button {
             width: 100%;
-            padding: 12px;
-            background: #238636;
+            padding: 14px;
+            background: var(--success);
             color: white;
             border: none;
-            border-radius: 6px;
-            font-weight: 600;
+            border-radius: 8px;
+            font-weight: 700;
             cursor: pointer;
-            margin-top: 8px;
-            transition: 0.2s;
+            transition: 0.3s;
+            text-transform: uppercase;
         }
 
-        button:hover { background: #2ea043; }
-        button:disabled { background: #23863680; cursor: not-allowed; }
+        button:hover { background: #2ea043; transform: scale(1.02); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        #resultArea {
+        #statusArea {
             margin-top: 20px;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 15px;
+            border-radius: 8px;
             display: none;
             font-size: 14px;
-            line-height: 1.5;
-            word-break: break-all;
+            border: 1px solid var(--border);
+            background: #0d1117;
+            white-space: pre-wrap; /* API'den gelen uzun mesajları düzgün gösterir */
         }
 
-        .hit { background: rgba(35, 134, 54, 0.15); border: 1px solid #238636; color: #3fb950; }
-        .bad { background: rgba(248, 81, 73, 0.15); border: 1px solid #f85149; color: #f85149; }
+        .success-res { border-color: var(--success); color: #3fb950; }
+        .error-res { border-color: #f85149; color: #f85149; }
     </style>
 </head>
 <body>
 
-<div class="checker-card">
+<div class="creator-card">
     <div class="header">
-        <h2>TABII CHECKER</h2>
-        <span>BURAK | DEVELOPER</span>
+        <h2>Tabii Account Gen</h2>
+        <p>BURAK | DEVELOPER</p>
     </div>
 
-    <div class="input-box">
-        <label>E-posta Adresi</label>
-        <i class="fas fa-envelope"></i>
-        <input type="text" id="mail" placeholder="email@example.com">
+    <div class="form-group">
+        <label>Oluşturulacak E-posta</label>
+        <input type="text" id="mailInput" placeholder="ornek@mail.com">
     </div>
 
-    <div class="input-box">
-        <label>Şifre</label>
-        <i class="fas fa-lock"></i>
-        <input type="password" id="pass" placeholder="••••••••">
+    <div class="form-group">
+        <label>Belirlenecek Şifre</label>
+        <input type="password" id="passInput" placeholder="Sifre123">
     </div>
 
-    <button id="sorguBtn" onclick="calistir()">Sorguyu Başlat</button>
+    <button id="genBtn" onclick="olustur()">Hesabı Oluştur</button>
 
-    <div id="resultArea"></div>
+    <div id="statusArea"></div>
 </div>
 
 <script>
-    async function calistir() {
-        const mail = document.getElementById('mail').value;
-        const pass = document.getElementById('pass').value;
-        const btn = document.getElementById('sorguBtn');
-        const res = document.getElementById('resultArea');
+    async function olustur() {
+        const mail = document.getElementById('mailInput').value;
+        const pass = document.getElementById('passInput').value;
+        const btn = document.getElementById('genBtn');
+        const status = document.getElementById('statusArea');
 
         if(!mail || !pass) {
             alert("Lütfen tüm alanları doldur!");
@@ -126,42 +123,33 @@
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Kontrol Ediliyor...';
-        res.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> İşlem Yapılıyor...';
+        status.style.display = 'none';
 
-        // Senin API URL'in
+        // API Bağlantısı - PASS kısmı tam sonda
         const apiUrl = `https://vexsorgu-api.alwaysdata.net/api/tabiichecker.php?mail=${encodeURIComponent(mail)}&password=${encodeURIComponent(pass)}`;
 
         try {
-            // Not: Eğer Alwaysdata CORS engeli koyduysa tarayıcıda çalışmayabilir.
-            // Bu durumda bir PHP dosyası üzerinden "file_get_contents" ile çekmek gerekebilir.
             const response = await fetch(apiUrl);
             const data = await response.json();
 
-            res.style.display = 'block';
-
-            // API'den dönen veriye göre (Success/Fail kontrolü)
-            // Genelde bu tarz API'ler "status" veya "message" döndürür.
-            if (data.status === true || data.status === "success" || data.message?.includes("Başarılı")) {
-                res.className = 'hit';
-                res.innerHTML = `<strong>DURUM:</strong> HIT (Giriş Başarılı)<br>
-                                 <strong>DATA:</strong> ${mail}:${pass}<br>
-                                 <strong>DETAY:</strong> ${JSON.stringify(data.bilgi || data.message || 'Abonelik Aktif')}`;
-            } else {
-                res.className = 'bad';
-                res.innerHTML = `<strong>DURUM:</strong> BAD (Hatalı/Abonelik Yok)<br>
-                                 <strong>MESAJ:</strong> ${data.message || 'Giriş Başarısız'}`;
+            status.style.display = 'block';
+            
+            // API başarılı bir şekilde hesap oluşturduğunda genellikle bir mesaj veya obje döner
+            if (data) {
+                status.className = 'success-res';
+                // API'den gelen tüm yanıtı ekrana basıyoruz ki ne olduğunu gör
+                status.innerHTML = `<strong>Sonuç:</strong><br>${JSON.stringify(data, null, 2)}`;
             }
 
         } catch (error) {
-            res.style.display = 'block';
-            res.className = 'bad';
-            res.innerHTML = `<strong>HATA:</strong> API'ye bağlanılamadı veya CORS engeli var.<br>
-                             <small>Konsolu (F12) kontrol et.</small>`;
-            console.error("API Error:", error);
+            status.style.display = 'block';
+            status.className = 'error-res';
+            status.innerHTML = `<strong>Hata:</strong> API yanıt vermedi.<br>CORS engeli olabilir veya API geçici olarak kapalıdır.`;
+            console.error("Hata:", error);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = 'Sorguyu Başlat';
+            btn.innerHTML = 'Hesabı Oluştur';
         }
     }
 </script>
