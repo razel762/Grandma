@@ -80,7 +80,8 @@
             font-size: 14px;
             border: 1px solid var(--border);
             background: #0d1117;
-            white-space: pre-wrap; /* API'den gelen uzun mesajları düzgün gösterir */
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .success-res { border-color: var(--success); color: #3fb950; }
@@ -126,26 +127,29 @@
         btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> İşlem Yapılıyor...';
         status.style.display = 'none';
 
-        // API Bağlantısı - PASS kısmı tam sonda
-        const apiUrl = `https://vexsorgu-api.alwaysdata.net/api/tabiichecker.php?mail=${encodeURIComponent(mail)}&password=${encodeURIComponent(pass)}`;
+        // Senin API URL'in (PASS sonda olacak şekilde ayarlı)
+        const targetUrl = `https://vexsorgu-api.alwaysdata.net/api/tabiichecker.php?mail=${encodeURIComponent(mail)}&password=${encodeURIComponent(pass)}`;
+        
+        // CORS engelini aşan Proxy URL
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
         try {
-            const response = await fetch(apiUrl);
-            const data = await response.json();
+            const response = await fetch(proxyUrl);
+            const proxyData = await response.json();
+            
+            // Proxy veriyi 'contents' içinde string olarak getirir, JSON'a çeviriyoruz
+            const data = JSON.parse(proxyData.contents);
 
             status.style.display = 'block';
+            status.className = 'success-res';
             
-            // API başarılı bir şekilde hesap oluşturduğunda genellikle bir mesaj veya obje döner
-            if (data) {
-                status.className = 'success-res';
-                // API'den gelen tüm yanıtı ekrana basıyoruz ki ne olduğunu gör
-                status.innerHTML = `<strong>Sonuç:</strong><br>${JSON.stringify(data, null, 2)}`;
-            }
+            // API'den gelen sonucun tamamını ekranda göster
+            status.innerHTML = `<strong>Sonuç:</strong><br>${JSON.stringify(data, null, 2)}`;
 
         } catch (error) {
             status.style.display = 'block';
             status.className = 'error-res';
-            status.innerHTML = `<strong>Hata:</strong> API yanıt vermedi.<br>CORS engeli olabilir veya API geçici olarak kapalıdır.`;
+            status.innerHTML = `<strong>Hata:</strong> API bağlantısı kurulamadı. <br><small>CORS veya API kaynaklı bir sorun oluştu.</small>`;
             console.error("Hata:", error);
         } finally {
             btn.disabled = false;
