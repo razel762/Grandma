@@ -5,109 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sadece Senin İçin</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700;900&display=swap');
+
         :root {
             --accent-color: #ff2e63;
             --bg-dark: #080808;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
             width: 100%;
             height: 100%;
             background-color: var(--bg-dark);
             color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Poppins', sans-serif;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: background 1.5s ease;
+            transition: background 2s ease;
         }
 
-        /* Köşedeki Sayaç */
+        /* Sağ Üstteki Sayaç Kutusu */
         #timer-box {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 12px;
-            border-left: 3px solid var(--accent-color);
-            font-family: monospace;
-            font-size: 0.95rem;
-            backdrop-filter: blur(5px);
-            z-index: 10;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            top: 30px;
+            right: 30px;
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 15px;
+            border-right: 4px solid var(--accent-color);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: right;
         }
 
+        .timer-main {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        #counter {
+            color: var(--accent-color);
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 900;
+            font-size: 1.4rem;
+        }
+
+        /* Ana Sayfa İçeriği */
         .container {
             text-align: center;
-            z-index: 5;
-            padding: 20px;
-            transition: opacity 0.5s ease;
+            z-index: 10;
+            padding: 40px;
+            max-width: 800px;
+            transition: all 1s ease;
         }
 
         h1 {
-            font-size: 3.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(to right, #fff, var(--accent-color));
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(to bottom, #fff 30%, var(--accent-color));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        p {
-            font-size: 1.2rem;
-            color: #ccc;
-            max-width: 600px;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        /* Özel Buton */
         .magic-button {
-            padding: 15px 40px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            text-transform: uppercase;
+            padding: 18px 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
             color: white;
             background: transparent;
             border: 2px solid var(--accent-color);
-            border-radius: 50px;
+            border-radius: 100px;
             cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: 0.4s;
+            transition: 0.5s;
         }
 
         .magic-button:hover {
             background: var(--accent-color);
-            box-shadow: 0 0 25px var(--accent-color);
+            box-shadow: 0 0 40px var(--accent-color);
             transform: scale(1.05);
         }
 
-        /* Butona Basınca Çıkacak Yazı */
         #surprise-text {
             display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 4.5rem;
+            font-size: 5rem;
             font-weight: 900;
-            z-index: 100;
+            z-index: 200;
             text-align: center;
             width: 100%;
-            text-shadow: 0 0 30px rgba(255,46,99,0.8);
-            animation: heartBeat 1.5s infinite;
+            text-shadow: 0 0 50px rgba(255,46,99,0.9);
+            animation: heartBeat 1.2s infinite;
         }
 
         @keyframes heartBeat {
             0% { transform: translate(-50%, -50%) scale(1); }
             14% { transform: translate(-50%, -50%) scale(1.1); }
             28% { transform: translate(-50%, -50%) scale(1); }
-            42% { transform: translate(-50%, -50%) scale(1.1); }
-            70% { transform: translate(-50%, -50%) scale(1); }
         }
 
         canvas { position: absolute; top: 0; left: 0; z-index: 1; }
@@ -116,8 +126,8 @@
 <body>
 
     <div id="timer-box">
-        <div>Birlikte geçen her anımız:</div>
-        <div id="counter" style="color: var(--accent-color); font-weight: bold; margin-top: 5px;"></div>
+        <div class="timer-main">243 Gün 5844 Saat<br>(8 Aydır) Tanışıyoruz...</div>
+        <div id="counter"></div>
     </div>
 
     <canvas id="stars"></canvas>
@@ -125,13 +135,12 @@
     <div class="container" id="main-content">
         <h1>Seninle Her Şey Başka</h1>
         <p>Bazı insanlar hayatınıza bir renk katar, sen benim hayatıma bütün bir gökyüzünü kattın.</p>
-        <button class="magic-button" onclick="launchSurprise()">Buraya Tıkla</button>
+        <button class="magic-button" onclick="launchSurprise()">BURAYA TIKLA</button>
     </div>
 
     <div id="surprise-text">İYİ Kİ VARSIN! ❤️</div>
 
     <script>
-        // Sayaç Mantığı (243 gün, 5844 saat üzerinden toplam saniyeyi başlatıyoruz)
         let totalSeconds = (243 * 24 * 60 * 60); 
 
         function updateCounter() {
@@ -140,64 +149,37 @@
             const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
             const mins = Math.floor((totalSeconds % 3600) / 60);
             const secs = totalSeconds % 60;
-            
-            document.getElementById('counter').innerHTML = 
-                `${days}g ${hours}s ${mins}dk ${secs}sn`;
+            document.getElementById('counter').innerHTML = `${days}G ${hours}S ${mins}D ${secs}S`;
         }
-        // Sayacı hemen başlat ve her saniye güncelle
-        updateCounter();
         setInterval(updateCounter, 1000);
+        updateCounter();
 
-        // Arka Plan Yıldız Animasyonu
         const canvas = document.getElementById('stars');
         const ctx = canvas.getContext('2d');
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
         let stars = [];
         for(let i=0; i<150; i++) {
-            stars.push({
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                size: Math.random() * 2,
-                speed: Math.random() * 0.5 + 0.1
-            });
+            stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2, speed: Math.random()*0.5});
         }
-
-        function drawStars() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function animate() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "white";
             stars.forEach(s => {
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
-                ctx.fill();
-                s.y -= s.speed;
-                if(s.y < 0) s.y = canvas.height;
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI*2); ctx.fill();
+                s.y -= s.speed; if(s.y<0) s.y = canvas.height;
             });
-            requestAnimationFrame(drawStars);
+            requestAnimationFrame(animate);
         }
-        drawStars();
+        animate();
 
-        // Sürpriz Fonksiyonu (Çalışmayan kısım düzeltildi)
         function launchSurprise() {
-            // Arka planı derin mor/gece rengi yap
-            document.body.style.background = "radial-gradient(circle, #2d004d 0%, #050505 100%)";
-            
-            // Eski içeriği soft bir şekilde gizle
-            const mainContent = document.getElementById('main-content');
-            mainContent.style.opacity = "0";
-            
+            document.body.style.background = "radial-gradient(circle, #3d001f 0%, #000 100%)";
+            document.getElementById('main-content').style.opacity = "0";
             setTimeout(() => {
-                mainContent.style.display = "none";
-                // Yeni yazıyı getir
-                const surprise = document.getElementById('surprise-text');
-                surprise.style.display = "block";
-            }, 500);
+                document.getElementById('main-content').style.display = "none";
+                document.getElementById('surprise-text').style.display = "block";
+            }, 600);
         }
     </script>
 </body>
